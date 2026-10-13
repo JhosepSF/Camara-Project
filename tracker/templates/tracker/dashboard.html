@@ -1,0 +1,544 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VISIÓN DE CÁMARA | Monitoreo en Tiempo Real</title>
+    <!-- Estilos Premium -->
+    <link rel="stylesheet" href="{% static 'tracker/css/style.css' %}">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Encabezado de la página -->
+        <header>
+            <h1>VISIÓN DE CÁMARA</h1>
+            <div class="system-status">
+                <div class="status-dot"></div>
+                <span id="status-text">Cargando Inteligencia Artificial...</span>
+            </div>
+        </header>
+
+        <!-- Contenedor Principal (Dashboard Grid) -->
+        <div class="dashboard-grid">
+            
+            <!-- Columna Izquierda: Video en vivo e instrucciones -->
+            <div class="card video-card">
+                <div class="video-header">
+                    <div class="video-title" id="cam-display-title">Visualización de Flujo de Video</div>
+                    <button class="btn-draw-mode" id="btn-draw-mode" type="button" title="Haga clic para trazar o mover la línea directamente en la imagen estilo PowerPoint">
+                        <span class="draw-icon">✏️</span> <span id="draw-btn-text">Trazar Línea en Vivo</span>
+                    </button>
+                </div>
+                
+                <div class="video-container" id="video-container">
+                    <img id="video-stream" src="{% url 'tracker:video_feed' %}" alt="Buscando señal de cámara...">
+                    
+                    <!-- Capa SVG Interactiva estilo PowerPoint para Graficar cualquier Línea (P1 a P2) -->
+                    <svg id="svg-line-overlay" class="svg-line-overlay">
+                        <line id="svg-line" x1="0" y1="50%" x2="100%" y2="50%" stroke="#ef4444" stroke-width="4" stroke-linecap="round" />
+                        <!-- Extremo P1 (Amarillo/Dorado) -->
+                        <circle id="svg-handle-p1" cx="0" cy="50%" r="10" fill="#f59e0b" stroke="#ffffff" stroke-width="2.5" class="svg-handle" title="Punto P1 (Arrastrar)" />
+                        <!-- Extremo P2 (Rojo) -->
+                        <circle id="svg-handle-p2" cx="100%" cy="50%" r="10" fill="#ef4444" stroke="#ffffff" stroke-width="2.5" class="svg-handle" title="Punto P2 (Arrastrar)" />
+                        <!-- Etiqueta de la línea -->
+                        <g id="svg-label-group">
+                            <rect id="svg-label-bg" x="-110" y="0" width="220" height="24" rx="12" fill="rgba(239, 68, 68, 0.9)" />
+                            <text id="svg-label-text" x="0" y="12" fill="#ffffff" font-size="11" font-weight="bold" text-anchor="middle" dominant-baseline="central">LÍNEA DE CONTEO</text>
+                        </g>
+                    </svg>
+                    
+                    <div class="draw-hint" id="draw-hint">
+                        ✏️ MODO DIBUJO ACTIVO: Clic y arrastra en el video para graficar la línea (o mueve sus extremos)
+                    </div>
+                </div>
+                
+                <div class="video-instructions">
+                    <strong>Regla de Conteo Actualizada:</strong><br>
+                    Si cruza la línea para <strong>abajo (↓)</strong> cuenta como <strong>Entrada</strong>.<br>
+                    Si la cruza para <strong>arriba (↑)</strong> cuenta como <strong>Salida</strong>.
+                </div>
+            </div>
+
+            <!-- Columna Derecha: Estadísticas y Configuración -->
+            <div class="stats-sidebar">
+                
+                <!-- Tarjetas de Conteo Principal -->
+                <div class="counters-grid">
+                    <!-- Entradas -->
+                    <div class="counter-card in">
+                        <div class="counter-icon">↓</div>
+                        <div class="counter-info">
+                            <span class="counter-label">Entradas</span>
+                            <span class="counter-value" id="count-in">0</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Salidas -->
+                    <div class="counter-card out">
+                        <div class="counter-icon">↑</div>
+                        <div class="counter-info">
+                            <span class="counter-label">Salidas</span>
+                            <span class="counter-value" id="count-out">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Desglose Demográfico (Género y Edad) -->
+                <div class="card">
+                    <div class="demographics-title">Distribución por Género</div>
+                    
+                    <div class="gender-bar-container">
+                        <div class="gender-labels">
+                            <span class="gender-label male">Hombres: <span id="val-male">0</span></span>
+                            <span class="gender-label female">Mujeres: <span id="val-female">0</span></span>
+                        </div>
+                        <div class="gender-bar-track">
+                            <div id="bar-male" class="gender-bar-fill male" style="width: 50%"></div>
+                            <div id="bar-female" class="gender-bar-fill female" style="width: 50%"></div>
+                        </div>
+                    </div>
+
+                    <div class="demographics-title" style="margin-top: 1.5rem;">Estimación por Rangos de Edad</div>
+                    <div class="age-grid" id="age-grid-container">
+                        <div class="age-item">
+                            <span class="age-range">Niño (0-12)</span>
+                            <span class="age-count" id="age-nino">0</span>
+                        </div>
+                        <div class="age-item">
+                            <span class="age-range">Joven (13-24)</span>
+                            <span class="age-count" id="age-joven">0</span>
+                        </div>
+                        <div class="age-item">
+                            <span class="age-range">Adulto (25-54)</span>
+                            <span class="age-count" id="age-adulto">0</span>
+                        </div>
+                        <div class="age-item">
+                            <span class="age-range">Adulto Mayor (55+)</span>
+                            <span class="age-count" id="age-adulto-mayor">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Panel de Configuración -->
+                <div class="card">
+                    <div class="demographics-title">Configuración de Cámara y Regla</div>
+                    
+                    <div class="config-group">
+                        <!-- Entrada de Video -->
+                        <div class="input-wrapper">
+                            <label class="input-label" for="camera-source">Origen del Streaming (Cámara IP o Local)</label>
+                            <input class="input-field" type="text" id="camera-source" value="{{ source }}" placeholder="Ej. 0, 1 o URL RTSP">
+                            <div class="input-helper">
+                                <strong>Cámara Hikvision DS-2CD1123G0E-I:</strong><br>
+                                Ingresa la URL con tus credenciales:<br>
+                                <code>rtsp://usuario:contraseña@192.168.1.80:554/Streaming/Channels/102</code>
+                            </div>
+                        </div>
+
+                        <!-- Línea de Conteo -->
+                        <div class="input-wrapper">
+                            <label class="input-label" for="line-slider">Posición de Línea de Conteo</label>
+                            <div class="slider-container">
+                                <input class="range-slider" type="range" id="line-slider" min="10" max="90" value="50">
+                                <span class="slider-val" id="line-val">50%</span>
+                            </div>
+                            <div class="input-helper">Ajusta la altura de la regla de cruce en pantalla.</div>
+                        </div>
+
+                        <!-- Acciones -->
+                        <div class="buttons-row">
+                            <button class="btn btn-secondary" id="btn-reset">Reiniciar Conteo</button>
+                            <button class="btn" id="btn-save">Aplicar Configuración</button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Script de lógica frontend -->
+    <script>
+        const API_STATS_URL = "{% url 'tracker:stats' %}";
+        const API_CONFIG_URL = "{% url 'tracker:update_config' %}";
+
+        // Elementos DOM
+        const countInEl = document.getElementById('count-in');
+        const countOutEl = document.getElementById('count-out');
+        const valMaleEl = document.getElementById('val-male');
+        const valFemaleEl = document.getElementById('val-female');
+        const barMaleEl = document.getElementById('bar-male');
+        const barFemaleEl = document.getElementById('bar-female');
+        const lineSlider = document.getElementById('line-slider');
+        const lineValEl = document.getElementById('line-val');
+        const cameraSourceInput = document.getElementById('camera-source');
+        const btnSave = document.getElementById('btn-save');
+        const btnReset = document.getElementById('btn-reset');
+        const statusText = document.getElementById('status-text');
+        const camDisplayTitle = document.getElementById('cam-display-title');
+
+        // Inicializar valor de barra deslizadora
+        lineValEl.textContent = lineSlider.value + '%';
+        lineSlider.addEventListener('input', (e) => {
+            lineValEl.textContent = e.target.value + '%';
+        });
+
+        // Actualizar visualización del slider en base a la config del servidor
+        let currentServerRatio = parseFloat("{{ line_y_ratio }}") || 0.5;
+        lineSlider.value = Math.round(currentServerRatio * 100);
+        lineValEl.textContent = lineSlider.value + '%';
+
+        // Mapeo de IDs de edad por rangos amplios
+        const ageIds = {
+            'Niño (0-12)': 'age-nino',
+            'Joven (13-24)': 'age-joven',
+            'Adulto (25-54)': 'age-adulto',
+            'Adulto Mayor (55+)': 'age-adulto-mayor'
+        };
+
+        // Función para consultar las estadísticas periódicamente
+        async function fetchStats() {
+            try {
+                const response = await fetch(API_STATS_URL);
+                if (!response.ok) throw new Error('Error al consultar estadísticas');
+                const data = await response.json();
+                
+                // Actualizar números de conteo
+                countInEl.textContent = data.total_in;
+                countOutEl.textContent = data.total_out;
+
+                // Actualizar estatus
+                if (data.is_running) {
+                    statusText.textContent = "Monitoreo Activo";
+                    document.querySelector('.system-status').style.background = "rgba(16, 185, 129, 0.1)";
+                    document.querySelector('.system-status').style.borderColor = "rgba(16, 185, 129, 0.2)";
+                    document.querySelector('.system-status').style.color = "var(--color-in)";
+                    document.querySelector('.status-dot').style.backgroundColor = "var(--color-in)";
+                    document.querySelector('.status-dot').style.boxShadow = "0 0 8px var(--color-in)";
+                } else {
+                    statusText.textContent = "Monitoreo Pausado";
+                    document.querySelector('.system-status').style.background = "rgba(239, 68, 68, 0.1)";
+                    document.querySelector('.system-status').style.borderColor = "rgba(239, 68, 68, 0.2)";
+                    document.querySelector('.system-status').style.color = "var(--color-out)";
+                    document.querySelector('.status-dot').style.backgroundColor = "var(--color-out)";
+                    document.querySelector('.status-dot').style.boxShadow = "0 0 8px var(--color-out)";
+                }
+
+                // Título de la fuente de video activa
+                let displaySrc = data.source;
+                if (displaySrc === "0") {
+                    camDisplayTitle.textContent = "Flujo de Video: Cámara Web Integrada";
+                } else if (displaySrc.startsWith("rtsp://")) {
+                    // Ocultar contraseña en el título por seguridad
+                    const cleanSrc = displaySrc.replace(/\/\/.*@/, '//[credenciales-ocultas]@');
+                    camDisplayTitle.textContent = "Flujo de Video: " + cleanSrc;
+                } else {
+                    camDisplayTitle.textContent = "Flujo de Video: " + displaySrc;
+                }
+
+                // Actualizar Generos
+                const males = data.gender_counts.Male || 0;
+                const females = data.gender_counts.Female || 0;
+                valMaleEl.textContent = males;
+                valFemaleEl.textContent = females;
+
+                const totalGenders = males + females;
+                if (totalGenders > 0) {
+                    const pctMale = (males / totalGenders) * 100;
+                    const pctFemale = (females / totalGenders) * 100;
+                    barMaleEl.style.width = pctMale + '%';
+                    barFemaleEl.style.width = pctFemale + '%';
+                } else {
+                    barMaleEl.style.width = '50%';
+                    barFemaleEl.style.width = '50%';
+                }
+
+                // Actualizar Edades
+                for (const [key, elementId] of Object.entries(ageIds)) {
+                    const count = data.age_counts[key] || 0;
+                    document.getElementById(elementId).textContent = count;
+                }
+            } catch (error) {
+                console.error('Error polling stats:', error);
+                statusText.textContent = "Error de Conexión";
+                document.querySelector('.system-status').style.background = "rgba(239, 68, 68, 0.1)";
+                document.querySelector('.system-status').style.borderColor = "rgba(239, 68, 68, 0.2)";
+                document.querySelector('.system-status').style.color = "var(--color-out)";
+                document.querySelector('.status-dot').style.backgroundColor = "var(--color-out)";
+            }
+        }
+
+        // Enviar configuración al servidor
+        async function saveConfig() {
+            const lineYRatio = parseFloat(lineSlider.value) / 100.0;
+            const source = cameraSourceInput.value.trim();
+
+            try {
+                const response = await fetch(API_CONFIG_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        line_y_ratio: lineYRatio,
+                        source: source
+                    })
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    alert('¡Configuración guardada y aplicada!');
+                    // Recargar la imagen del stream de video para asegurar conexión fluida si cambió de fuente
+                    const streamImg = document.getElementById('video-stream');
+                    const currentSrc = streamImg.src.split('?')[0];
+                    streamImg.src = currentSrc + '?t=' + new Date().getTime();
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error saving config:', error);
+                alert('No se pudo guardar la configuración. Revisa la consola.');
+            }
+        }
+
+        // Reiniciar estadísticas
+        async function resetStats() {
+            if (!confirm('¿Estás seguro de que quieres restablecer todos los contadores a 0?')) return;
+            try {
+                const response = await fetch(API_CONFIG_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'reset'
+                    })
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    // Actualizar UI inmediatamente
+                    countInEl.textContent = '0';
+                    countOutEl.textContent = '0';
+                    valMaleEl.textContent = '0';
+                    valFemaleEl.textContent = '0';
+                    barMaleEl.style.width = '50%';
+                    barFemaleEl.style.width = '50%';
+                    document.querySelectorAll('.age-count').forEach(el => el.textContent = '0');
+                } else {
+                    alert('Error al reiniciar: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error resetting stats:', error);
+            }
+        }
+
+        // Event listeners
+        btnSave.addEventListener('click', saveConfig);
+        btnReset.addEventListener('click', resetStats);
+
+        // ==========================================
+        // Lógica de Trazado de Línea Vectorial (Estilo PowerPoint: P1 -> P2)
+        // ==========================================
+        const btnDrawMode = document.getElementById('btn-draw-mode');
+        const drawBtnText = document.getElementById('draw-btn-text');
+        const videoContainer = document.getElementById('video-container');
+        const videoStream = document.getElementById('video-stream');
+        
+        const svgLine = document.getElementById('svg-line');
+        const svgHandleP1 = document.getElementById('svg-handle-p1');
+        const svgHandleP2 = document.getElementById('svg-handle-p2');
+        const svgLabelGroup = document.getElementById('svg-label-group');
+        const svgLabelText = document.getElementById('svg-label-text');
+        const svgLabelBg = document.getElementById('svg-label-bg');
+
+        let lineP1 = [0.0, currentServerRatio]; // [x1, y1] ratios 0..1
+        let lineP2 = [1.0, currentServerRatio]; // [x2, y2] ratios 0..1
+
+        let isDrawingMode = false;
+        let activeDragTarget = null; // null | 'draw_new' | 'p1' | 'p2'
+
+        function renderSvgLine() {
+            const rect = videoStream.getBoundingClientRect();
+            const width = rect.width || 640;
+            const height = rect.height || 360;
+
+            const x1Pct = (lineP1[0] * 100) + '%';
+            const y1Pct = (lineP1[1] * 100) + '%';
+            const x2Pct = (lineP2[0] * 100) + '%';
+            const y2Pct = (lineP2[1] * 100) + '%';
+
+            svgLine.setAttribute('x1', x1Pct);
+            svgLine.setAttribute('y1', y1Pct);
+            svgLine.setAttribute('x2', x2Pct);
+            svgLine.setAttribute('y2', y2Pct);
+
+            svgHandleP1.setAttribute('cx', x1Pct);
+            svgHandleP1.setAttribute('cy', y1Pct);
+            svgHandleP2.setAttribute('cx', x2Pct);
+            svgHandleP2.setAttribute('cy', y2Pct);
+
+            // Posicionar etiqueta en el punto medio del segmento
+            const midX = ((lineP1[0] + lineP2[0]) / 2) * width;
+            const midY = ((lineP1[1] + lineP2[1]) / 2) * height;
+
+            svgLabelGroup.setAttribute('transform', `translate(${midX}, ${Math.max(16, midY - 14)})`);
+            svgLabelText.setAttribute('x', 0);
+            svgLabelText.setAttribute('y', 12);
+            svgLabelBg.setAttribute('x', -110);
+            svgLabelBg.setAttribute('y', 0);
+
+            // Sincronizar slider si la línea es relativamente horizontal
+            const avgY = (lineP1[1] + lineP2[1]) / 2;
+            lineSlider.value = Math.round(avgY * 100);
+            lineValEl.textContent = lineSlider.value + '%';
+        }
+
+        renderSvgLine();
+        window.addEventListener('resize', renderSvgLine);
+
+        // Slider listener
+        lineSlider.addEventListener('input', (e) => {
+            const r = parseFloat(e.target.value) / 100.0;
+            lineValEl.textContent = e.target.value + '%';
+            lineP1 = [0.0, r];
+            lineP2 = [1.0, r];
+            renderSvgLine();
+        });
+
+        lineSlider.addEventListener('change', async () => {
+            const r = parseFloat(lineSlider.value) / 100.0;
+            lineP1 = [0.0, r];
+            lineP2 = [1.0, r];
+            renderSvgLine();
+            try {
+                await fetch(API_CONFIG_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ line_p1: lineP1, line_p2: lineP2 })
+                });
+            } catch (error) {
+                console.error('Error updating line height:', error);
+            }
+        });
+
+        // Toggle Modo Dibujo
+        btnDrawMode.addEventListener('click', () => {
+            isDrawingMode = !isDrawingMode;
+            if (isDrawingMode) {
+                btnDrawMode.classList.add('active');
+                drawBtnText.textContent = "✓ Finalizar Trazado";
+                videoContainer.classList.add('drawing-active');
+            } else {
+                btnDrawMode.classList.remove('active');
+                drawBtnText.textContent = "Trazar Línea en Vivo";
+                videoContainer.classList.remove('drawing-active');
+            }
+        });
+
+        // Obtener [x_ratio, y_ratio] desde eventos del mouse/touch
+        function getCoordsFromEvent(e) {
+            const rect = videoStream.getBoundingClientRect();
+            const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+            const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+
+            let relX = (clientX - rect.left) / rect.width;
+            let relY = (clientY - rect.top) / rect.height;
+
+            relX = Math.max(0.0, Math.min(1.0, relX));
+            relY = Math.max(0.0, Math.min(1.0, relY));
+
+            return [relX, relY];
+        }
+
+        // Eventos de agarre en los extremos P1 y P2
+        svgHandleP1.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
+            activeDragTarget = 'p1';
+        });
+
+        svgHandleP2.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
+            activeDragTarget = 'p2';
+        });
+
+        svgHandleP1.addEventListener('touchstart', (e) => {
+            e.stopPropagation();
+            activeDragTarget = 'p1';
+        }, { passive: true });
+
+        svgHandleP2.addEventListener('touchstart', (e) => {
+            e.stopPropagation();
+            activeDragTarget = 'p2';
+        }, { passive: true });
+
+        // Arrastrar sobre el contenedor para trazar una nueva línea estilo PowerPoint (P1 a P2)
+        videoContainer.addEventListener('mousedown', (e) => {
+            if (isDrawingMode && !activeDragTarget) {
+                activeDragTarget = 'draw_new';
+                const coords = getCoordsFromEvent(e);
+                lineP1 = [coords[0], coords[1]];
+                lineP2 = [coords[0], coords[1]];
+                renderSvgLine();
+            }
+        });
+
+        videoContainer.addEventListener('touchstart', (e) => {
+            if (isDrawingMode && !activeDragTarget) {
+                activeDragTarget = 'draw_new';
+                const coords = getCoordsFromEvent(e);
+                lineP1 = [coords[0], coords[1]];
+                lineP2 = [coords[0], coords[1]];
+                renderSvgLine();
+            }
+        }, { passive: true });
+
+        // Mover puntero/touch
+        function handleDragMove(e) {
+            if (!activeDragTarget) return;
+            const coords = getCoordsFromEvent(e);
+
+            if (activeDragTarget === 'draw_new' || activeDragTarget === 'p2') {
+                lineP2 = [coords[0], coords[1]];
+            } else if (activeDragTarget === 'p1') {
+                lineP1 = [coords[0], coords[1]];
+            }
+
+            renderSvgLine();
+        }
+
+        window.addEventListener('mousemove', handleDragMove);
+        window.addEventListener('touchmove', handleDragMove, { passive: true });
+
+        // Finalizar trazo o mover extremo -> Guardar en Django
+        async function handleDragEnd() {
+            if (!activeDragTarget) return;
+            activeDragTarget = null;
+            renderSvgLine();
+
+            try {
+                await fetch(API_CONFIG_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        line_p1: lineP1,
+                        line_p2: lineP2
+                    })
+                });
+                console.log("Segmento de línea trazada guardado:", lineP1, lineP2);
+            } catch (err) {
+                console.error("Error al guardar segmento trazado:", err);
+            }
+        }
+
+        window.addEventListener('mouseup', handleDragEnd);
+        window.addEventListener('touchend', handleDragEnd);
+
+        // Iniciar polling de estadísticas cada 1 segundo
+        setInterval(fetchStats, 1000);
+        // Primera carga inmediata
+        fetchStats();
+    </script>
+</body>
+</html>
